@@ -6,7 +6,7 @@ in a browser. It runs as a service on its own port (7443), encrypted, and only
 devices you pair with a one-time code can see or change anything.
 
 Works with **Apex Activity Manager 1.3.0 or later** for Mac
-([download](https://github.com/sudo-user101/Apex-Activity-Manager/releases/latest)),
+([download](https://github.com/sudo-user101/Apex-Activity-Manager-MacOSX/releases/latest)),
 and with any modern browser.
 
 One static program, no dependencies, for x86_64 and aarch64 Linux with
