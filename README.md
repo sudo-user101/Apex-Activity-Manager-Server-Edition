@@ -52,6 +52,24 @@ from (`journalctl -u apex-server`, or /var/log/apex-server.log).
   stored on the server, and any device can be removed.
 - The systemd service runs with NoNewPrivileges and a read-only system.
 
+## Every computer
+
+Apex's direction is simple: **if it's a computer, it can run Apex.** One app,
+the same pages and the same plain words on every operating system and every
+kind of hardware:
+
+- **macOS:** Apple silicon and Intel.
+- **Windows:** x64 and ARM64 PCs.
+- **Linux:** desktops and servers, x86_64 and ARM (64- and 32-bit), the main
+  distributions and the small ones.
+- More to come, as they're tested: older versions of each system, and other
+  operating systems.
+
+Some features depend on what each system allows (fan control or battery
+charge limits, for example), so an edition may have fewer of them. When it
+does, the app says so plainly instead of hiding the page. Install should
+never be the thing that stops you.
+
 ## Building
 
     ./build.sh        # vet, test, then dist/apex-server-<version>-linux.tar.gz
