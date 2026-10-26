@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Apex Server Edition</title>
+<style>
+:root {
+  --bg: #1e1e20; --panel: #2a2a2d; --panel2: #323236; --line: rgba(255,255,255,.08);
+  --text: #f2f2f4; --muted: #a1a1a8; --faint: #6e6e76;
+  --blue: #4C9AFF; --apps: #7C83FF; --cyan: #42C7D5; --green: #4CCBA0; --orange: #FF9F43;
+  --yellow: #F5C542; --red: #FF5C5C; --sel: #2f6fdc;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #f5f5f7; --panel: #ffffff; --panel2: #f0f0f3; --line: rgba(0,0,0,.08);
+    --text: #1d1d1f; --muted: #6e6e73; --faint: #a1a1a6;
+    --blue: #1F6FDB; --apps: #5158D6; --cyan: #138A99; --green: #1B8F68; --orange: #C86E12;
+    --yellow: #B38600; --red: #D13434; --sel: #1F6FDB;
+    color-scheme: light;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.4 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Ubuntu, sans-serif; }
+header { display: flex; align-items: center; gap: 16px; padding: 12px 20px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--bg); z-index: 2; }
+header h1 { font-size: 15px; font-weight: 600; margin: 0; white-space: nowrap; }
+header .host { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+nav { display: flex; gap: 2px; background: var(--panel2); padding: 2px; border-radius: 8px; margin-left: auto; }
+nav button { border: 0; background: none; color: var(--muted); padding: 5px 12px; border-radius: 6px; font: inherit; cursor: pointer; }
+nav button.on { background: var(--panel); color: var(--text); box-shadow: 0 1px 2px rgba(0,0,0,.25); }
+main { padding: 20px; max-width: 1200px; margin: 0 auto; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+.card { background: var(--panel); border-radius: 12px; padding: 14px 16px; border: 1px solid var(--line); }
+.card h3 { margin: 0 0 4px; font-size: 13px; font-weight: 500; color: var(--muted); }
+.big { font-size: 26px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.sub { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+canvas { width: 100%; height: 60px; display: block; margin-top: 8px; }
+.bar { height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; margin-top: 8px; }
+.bar > i { display: block; height: 100%; background: var(--blue); }
+h2 { font-size: 13px; font-weight: 500; color: var(--muted); margin: 22px 0 8px; }
+.toolbar { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; flex-wrap: wrap; }
+input[type=search], input[type=text] { background: var(--panel2); border: 1px solid var(--line); color: var(--text); border-radius: 7px; padding: 6px 10px; font: inherit; }
+button.act { background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 7px; padding: 5px 12px; font: inherit; cursor: pointer; }
+button.act:disabled { opacity: .4; cursor: default; }
+button.primary { background: var(--sel); border-color: transparent; color: #fff; }
+.seg { display: inline-flex; background: var(--panel2); border-radius: 7px; padding: 2px; }
+.seg button { border: 0; background: none; color: var(--muted); padding: 4px 10px; border-radius: 5px; font: inherit; cursor: pointer; }
+.seg button.on { background: var(--panel); color: var(--text); }
+.table { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; overflow: auto; max-height: calc(100vh - 190px); }
+table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+th { position: sticky; top: 0; background: var(--panel); text-align: left; font-weight: 500; color: var(--muted); font-size: 12px; padding: 8px 10px; border-bottom: 1px solid var(--line); cursor: pointer; white-space: nowrap; user-select: none; }
+td { padding: 6px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 420px; }
+tr.sel td { background: var(--sel); color: #fff; }
+tbody tr { cursor: default; }
+td.num, th.num { text-align: right; }
+.dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 6px; vertical-align: 1px; background: var(--faint); }
+.muted { color: var(--muted); }
+.note { color: var(--muted); font-size: 12px; margin-top: 10px; }
+.msg { margin-left: 8px; color: var(--muted); }
+#login { max-width: 380px; margin: 12vh auto; text-align: center; }
+#login .card { padding: 26px; text-align: left; }
+#login input { width: 100%; font-size: 20px; letter-spacing: 3px; text-align: center; text-transform: uppercase; margin: 14px 0; }
+.err { color: var(--red); font-size: 13px; min-height: 18px; }
+.hidden { display: none !important; }
+@media (max-width: 640px) { header { flex-wrap: wrap; } nav { margin-left: 0; width: 100%; overflow-x: auto; } main { padding: 12px; } }
+</style>
+</head>
+<body>
+<div id="login" class="hidden">
+  <h1 style="font-weight:600">Apex Server Edition</h1>
+  <div class="card">
+    <div>Enter the pairing code shown when Apex was installed on this server, or run <code>sudo apex-server pair</code> there for a new one.</div>
+    <input id="code" type="text" placeholder="XXXX-XXXX" autocomplete="one-time-code" autofocus>
+    <div class="err" id="loginErr"></div>
+    <button class="act primary" id="pairBtn" style="width:100%">Pair this browser</button>
+  </div>
+</div>
+
+<div id="app" class="hidden">
+  <header>
+    <h1>Apex Server Edition</h1>
+    <span class="host" id="host"></span>
+    <nav id="tabs">
+      <button data-t="overview" class="on">Performance</button>
+      <button data-t="processes">Processes</button>
+      <button data-t="services">Services</button>
+      <button data-t="users">Users</button>
+      <button data-t="containers">Containers</button>
+    </nav>
+  </header>
+  <main>
+    <section id="overview"></section>
+    <section id="processes" class="hidden">
+      <div class="toolbar">
+        <input type="search" id="psearch" placeholder="Search name, user, PID or command">
+        <button class="act" id="pend" disabled>End</button>
+        <button class="act" id="pkill" disabled>Force End</button>
+        <span class="msg" id="pmsg"></span>
+      </div>
+      <div class="table"><table><thead><tr id="phead"></tr></thead><tbody id="pbody"></tbody></table></div>
+    </section>
+    <section id="services" class="hidden">
+      <div class="toolbar">
+        <div class="seg" id="sfilter"><button data-f="all" class="on">All</button><button data-f="running">Running</button><button data-f="failed">Failed</button><button data-f="stopped">Stopped</button></div>
+        <input type="search" id="ssearch" placeholder="Search">
+        <button class="act" id="sstart" disabled>Start</button>
+        <button class="act" id="sstop" disabled>Stop</button>
+        <button class="act" id="srestart" disabled>Restart</button>
+        <span class="msg" id="smsg"></span>
+      </div>
+      <div class="table"><table><thead><tr><th>Name</th><th>Description</th><th>Status</th></tr></thead><tbody id="sbody"></tbody></table></div>
+    </section>
+    <section id="users" class="hidden">
+      <div class="table"><table><thead><tr><th>User</th><th>Signed in</th><th class="num">Processes</th><th class="num">CPU</th><th class="num">Memory</th></tr></thead><tbody id="ubody"></tbody></table></div>
+    </section>
+    <section id="containers" class="hidden">
+      <div class="toolbar">
+        <button class="act" id="cstart" disabled>Start</button>
+        <button class="act" id="cstop" disabled>Stop</button>
+        <button class="act" id="crestart" disabled>Restart</button>
+        <span class="msg" id="cmsg"></span>
+      </div>
+      <div class="table"><table><thead><tr><th>Name</th><th>Image</th><th>Status</th><th class="num">CPU</th><th class="num">Memory</th><th class="num">Network</th></tr></thead><tbody id="cbody"></tbody></table></div>
+    </section>
+  </main>
+</div>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const bytes = b => { if (!b) return "0 KB"; const u = ["B","KB","MB","GB","TB"]; let i = 0, v = b; while (v >= 1024 && i < u.length - 1) { v /= 1024; i++; } return (v < 10 && i > 0 ? v.toFixed(1) : Math.round(v)) + " " + u[i]; };
+const rate = b => { if (b < 1) return "0 KB/s"; const u = ["B/s","KB/s","MB/s","GB/s"]; let i = 0, v = b; while (v >= 1000 && i < u.length - 1) { v /= 1000; i++; } return (v < 10 && i > 0 ? v.toFixed(1) : Math.round(v)) + " " + u[i]; };
+const dur = s => { s = Math.max(0, Math.round(s)); const d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60); return d ? `${d}d ${h}h` : h ? `${h}h ${m}m` : m ? `${m}m` : `${s}s`; };
+const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+
+let snap = null, tab = "overview", hist = { cpu: [], mem: [], rx: [], tx: [] };
+let psort = { k: "cpu", d: -1 }, psel = new Set(), ssel = null, sfil = "all", csel = null;
+
+async function api(path, body) {
+  const r = await fetch(path, body ? { method: "POST", headers: { "Content-Type": "application/json", "X-Apex": "1" }, body: JSON.stringify(body) } : {});
+  if (r.status === 401) { showLogin(); throw new Error("not paired"); }
+  return r.json();
+}
+
+function showLogin() { $("app").classList.add("hidden"); $("login").classList.remove("hidden"); }
+
+$("pairBtn").onclick = async () => {
+  $("loginErr").textContent = "";
+  const r = await fetch("/api/pair?browser=1", { method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ code: $("code").value, device: "Browser · " + (navigator.userAgentData?.platform || navigator.platform || "") }) });
+  const j = await r.json();
+  if (j.ok) { $("login").classList.add("hidden"); start(); } else $("loginErr").textContent = j.error || "Couldn’t pair.";
+};
+$("code").addEventListener("keydown", e => { if (e.key === "Enter") $("pairBtn").click(); });
+
+document.querySelectorAll("#tabs button").forEach(b => b.onclick = () => {
+  document.querySelectorAll("#tabs button").forEach(x => x.classList.toggle("on", x === b));
+  tab = b.dataset.t;
+  ["overview", "processes", "services", "users", "containers"].forEach(t => $(t).classList.toggle("hidden", t !== tab));
+  render();
+});
+
+function push(a, v) { a.push(v); if (a.length > 90) a.shift(); }
+
+async function tick() {
+  try {
+    snap = await api("/api/snapshot");
+    push(hist.cpu, snap.cpu.total);
+    push(hist.mem, snap.memory.total ? (snap.memory.total - snap.memory.available) / snap.memory.total * 100 : 0);
+    push(hist.rx, snap.network.reduce((a, n) => a + n.inPerSec, 0));
+    push(hist.tx, snap.network.reduce((a, n) => a + n.outPerSec, 0));
+    render();
+  } catch (e) { /* shown by the login page, or tried again */ }
+}
+
+function start() {
+  $("app").classList.remove("hidden");
+  tick(); setInterval(tick, 2000);
+}
+
+function spark(canvas, series, max) {
+  const dpr = devicePixelRatio || 1, w = canvas.clientWidth, h = canvas.clientHeight;
+  canvas.width = w * dpr; canvas.height = h * dpr;
+  const c = canvas.getContext("2d"); c.scale(dpr, dpr); c.clearRect(0, 0, w, h);
+  c.strokeStyle = css("--line"); c.lineWidth = 1;
+  for (let i = 1; i < 4; i++) { c.beginPath(); c.moveTo(0, h * i / 4); c.lineTo(w, h * i / 4); c.stroke(); }
+  const top = max ?? Math.max(10000, ...series.flatMap(s => s.v)) * 1.15;
+  for (const s of series) {
+    if (s.v.length < 2) continue;
+    const x = i => w - (s.v.length - 1 - i) * (w / 89), y = v => h - Math.min(v, top) / top * h;
+    c.beginPath(); s.v.forEach((v, i) => i ? c.lineTo(x(i), y(v)) : c.moveTo(x(i), y(v)));
+    if (s.fill) { c.lineTo(x(s.v.length - 1), h); c.lineTo(x(0), h); c.closePath(); c.globalAlpha = .15; c.fillStyle = s.c; c.fill(); c.globalAlpha = 1;
+      c.beginPath(); s.v.forEach((v, i) => i ? c.lineTo(x(i), y(v)) : c.moveTo(x(i), y(v))); }
+    c.strokeStyle = s.c; c.lineWidth = 1.5; c.stroke();
+  }
+}
+
+function render() {
+  if (!snap) return;
+  $("host").textContent = `${snap.host} · ${snap.os} · up ${dur(snap.uptime)}`;
+  document.title = `${snap.host} · Apex`;
+  ({ overview, processes, services, users, containers })[tab]();
+}
+
+function overview() {
+  const m = snap.memory, used = m.total - m.available, swapUsed = m.swapTotal - m.swapFree;
+  const rx = hist.rx.at(-1) || 0, tx = hist.tx.at(-1) || 0;
+  let html = `<div class="grid">
+    <div class="card"><h3>CPU</h3><div class="big">${snap.cpu.total.toFixed(0)}%</div>
+      <div class="sub">${esc(snap.cpu.model || snap.cpu.cores + " cores")} · load ${(snap.cpu.load || []).map(v => v.toFixed(2)).join(" ")}</div><canvas id="gcpu"></canvas></div>
+    <div class="card"><h3>Memory</h3><div class="big">${bytes(used)} <span class="sub">of ${bytes(m.total)}</span></div>
+      <div class="sub">${bytes(m.available)} available · swap ${m.swapTotal ? bytes(swapUsed) + " of " + bytes(m.swapTotal) : "none"}</div><canvas id="gmem"></canvas></div>
+    <div class="card"><h3>Network</h3><div class="big">↓ ${rate(rx)}</div><div class="sub">↑ ${rate(tx)} · ${snap.connections} connections</div><canvas id="gnet"></canvas></div>
+  </div>`;
+  html += `<h2>Disks</h2><div class="grid">` + snap.disks.map(d => `<div class="card"><h3>${esc(d.mount)} <span class="muted">${esc(d.device)} · ${esc(d.fsType)}</span></h3>
+      <div class="big">${d.total ? Math.round(d.used / d.total * 100) : 0}%</div>
+      <div class="sub">${bytes(d.free)} free of ${bytes(d.total)} · read ${rate(d.readPerSec)} · write ${rate(d.writePerSec)}</div>
+      <div class="bar"><i style="width:${d.total ? d.used / d.total * 100 : 0}%;background:${d.used / d.total > .9 ? "var(--red)" : "var(--blue)"}"></i></div></div>`).join("") + `</div>`;
+  if (snap.cpu.perCore.length) html += `<h2>Each core</h2><div class="card"><div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(70px,1fr));gap:10px">` +
+    snap.cpu.perCore.map((v, i) => `<div><div class="sub">${i + 1} · ${v.toFixed(0)}%</div><div class="bar"><i style="width:${v}%"></i></div></div>`).join("") + `</div></div>`;
+  if (snap.network.length) html += `<h2>Network interfaces</h2><div class="card">` + snap.network.map(n =>
+    `<div style="display:flex;gap:16px;padding:3px 0"><b style="min-width:120px">${esc(n.name)}</b><span class="sub">${esc((n.addresses || []).join(", "))}</span><span style="margin-left:auto" class="sub">↓ ${rate(n.inPerSec)} ↑ ${rate(n.outPerSec)}</span></div>`).join("") + `</div>`;
+  if (snap.gpus.length) html += `<h2>GPU</h2><div class="grid">` + snap.gpus.map(g => `<div class="card"><h3>${esc(g.name)}</h3><div class="big">${g.utilization.toFixed(0)}%</div><div class="sub">${bytes(g.memoryUsed)} of ${bytes(g.memoryTotal)} · ${g.temperature ? g.temperature.toFixed(0) + " °C" : ""}</div></div>`).join("") + `</div>`;
+  if (snap.sensors.length) html += `<h2>Temperatures</h2><div class="card">` + snap.sensors.map(s => `<div style="display:flex;padding:2px 0"><span>${esc(s.name)}</span><span style="margin-left:auto" class="sub">${s.celsius.toFixed(0)} °C</span></div>`).join("") + `</div>`;
+  $("overview").innerHTML = html;
+  spark($("gcpu"), [{ v: hist.cpu, c: css("--blue"), fill: true }], 100);
+  spark($("gmem"), [{ v: hist.mem, c: css("--blue"), fill: true }], 100);
+  spark($("gnet"), [{ v: hist.rx, c: css("--orange"), fill: true }, { v: hist.tx, c: css("--blue") }]);
+}
+
+const pcols = [["name", "Name"], ["pid", "PID", 1], ["user", "User"], ["cpu", "CPU", 1], ["memory", "Memory", 1], ["readPerSec", "Disk", 1], ["seconds", "Running for", 1], ["command", "Command"]];
+function processes() {
+  $("phead").innerHTML = pcols.map(([k, t, n]) => `<th data-k="${k}" class="${n ? "num" : ""}">${t}${psort.k === k ? (psort.d < 0 ? " ↓" : " ↑") : ""}</th>`).join("");
+  $("phead").querySelectorAll("th").forEach(th => th.onclick = () => { const k = th.dataset.k; psort = { k, d: psort.k === k ? -psort.d : (["name", "user", "command"].includes(k) ? 1 : -1) }; processes(); });
+  const q = $("psearch").value.toLowerCase();
+  const list = snap.processes.filter(p => !q || p.name.toLowerCase().includes(q) || p.user.toLowerCase().includes(q) || String(p.pid) === q || p.command.toLowerCase().includes(q))
+    .sort((a, b) => { const k = psort.k, x = k === "readPerSec" ? a.readPerSec + a.writePerSec : a[k], y = k === "readPerSec" ? b.readPerSec + b.writePerSec : b[k]; return (x > y ? 1 : x < y ? -1 : 0) * psort.d; });
+  const alive = new Set(list.map(p => p.pid)); psel.forEach(p => { if (!alive.has(p)) psel.delete(p); });
+  $("pbody").innerHTML = list.map(p => `<tr data-p="${p.pid}" class="${psel.has(p.pid) ? "sel" : ""}"><td>${esc(p.name)}</td><td class="num">${p.pid}</td><td>${esc(p.user)}</td>
+    <td class="num">${p.cpu.toFixed(1)}%</td><td class="num">${bytes(p.memory)}</td><td class="num">${rate(p.readPerSec + p.writePerSec)}</td><td class="num">${dur(p.seconds)}</td><td class="muted" title="${esc(p.command)}">${esc(p.command)}</td></tr>`).join("");
+  $("pbody").querySelectorAll("tr").forEach(tr => tr.onclick = e => {
+    const pid = +tr.dataset.p;
+    if (e.metaKey || e.ctrlKey) psel.has(pid) ? psel.delete(pid) : psel.add(pid); else psel = new Set([pid]);
+    processes();
+  });
+  $("pend").disabled = $("pkill").disabled = psel.size === 0;
+}
+$("psearch").oninput = () => processes();
+async function endSel(force) {
+  const names = [...psel].map(p => snap.processes.find(x => x.pid === p)?.name || p);
+  if (!confirm(`${force ? "Force end" : "End"} ${names.length === 1 ? names[0] : names.length + " processes"}?`)) return;
+  const r = await api("/api/action", { kind: "process", verb: "end", target: [...psel].join(" "), force });
+  $("pmsg").textContent = r.message; psel.clear(); setTimeout(tick, 400);
+}
+$("pend").onclick = () => endSel(false); $("pkill").onclick = () => endSel(true);
+
+function services() {
+  const all = snap.services, q = $("ssearch").value.toLowerCase();
+  if (!all.length) { $("sbody").innerHTML = `<tr><td colspan="3" class="muted">${snap.inContainer ? "This is a container: it runs programs, not system services. See Processes." : "No service manager Apex knows (systemd, OpenRC or SysV) on this server."}</td></tr>`; return; }
+  const running = v => v.sub === "running", failed = v => v.active === "failed";
+  const list = all.filter(v => (sfil === "all" || (sfil === "running" && running(v)) || (sfil === "failed" && failed(v)) || (sfil === "stopped" && !running(v) && !failed(v)))
+    && (!q || v.name.toLowerCase().includes(q) || (v.description || "").toLowerCase().includes(q)));
+  $("sbody").innerHTML = list.map(v => `<tr data-s="${esc(v.name)}" class="${ssel === v.name ? "sel" : ""}"><td>${esc(v.name)}</td><td class="muted">${esc(v.description)}</td>
+    <td><span class="dot" style="background:${failed(v) ? "var(--red)" : running(v) ? "var(--green)" : "var(--faint)"}"></span>${failed(v) ? "Failed" : running(v) ? "Running" : esc(v.sub)}</td></tr>`).join("");
+  $("sbody").querySelectorAll("tr").forEach(tr => tr.onclick = () => { ssel = tr.dataset.s; services(); });
+  const cur = all.find(v => v.name === ssel);
+  $("sstart").disabled = !cur || running(cur); $("sstop").disabled = $("srestart").disabled = !cur || !running(cur);
+}
+document.querySelectorAll("#sfilter button").forEach(b => b.onclick = () => { sfil = b.dataset.f; document.querySelectorAll("#sfilter button").forEach(x => x.classList.toggle("on", x === b)); services(); });
+$("ssearch").oninput = () => services();
+for (const v of ["start", "stop", "restart"]) $("s" + v).onclick = async () => {
+  if (!ssel || !confirm(`${v[0].toUpperCase() + v.slice(1)} ${ssel}?`)) return;
+  $("smsg").textContent = "Working…";
+  const r = await api("/api/action", { kind: "service", verb: v, target: ssel });
+  $("smsg").textContent = r.message; setTimeout(tick, 800);
+};
+
+function users() {
+  const by = {};
+  for (const p of snap.processes) { const u = by[p.user] ||= { user: p.user, n: 0, cpu: 0, mem: 0, s: [] }; u.n++; u.cpu += p.cpu; u.mem += p.memory; }
+  for (const s of snap.sessions) (by[s.user] ||= { user: s.user, n: 0, cpu: 0, mem: 0, s: [] }).s.push(s.from ? `${s.terminal} from ${s.from}` : s.terminal);
+  const rows = Object.values(by).sort((a, b) => (b.s.length > 0) - (a.s.length > 0) || b.cpu - a.cpu);
+  $("ubody").innerHTML = rows.map(u => `<tr><td><span class="dot" style="background:${u.s.length ? "var(--green)" : "var(--faint)"}"></span>${esc(u.user)}</td>
+    <td class="muted">${esc(u.s.join(", ") || "—")}</td><td class="num">${u.n}</td><td class="num">${u.cpu.toFixed(1)}%</td><td class="num">${bytes(u.mem)}</td></tr>`).join("");
+}
+
+function containers() {
+  if (!snap.containers.length) { $("cbody").innerHTML = `<tr><td colspan="6" class="muted">No Docker or Podman containers on this server.</td></tr>`; return; }
+  $("cbody").innerHTML = snap.containers.map(c => `<tr data-c="${esc(c.id)}" class="${csel === c.id ? "sel" : ""}"><td><span class="dot" style="background:${c.state === "running" ? "var(--green)" : "var(--faint)"}"></span>${esc(c.name)}</td>
+    <td class="muted">${esc(c.image)}</td><td>${esc(c.status)}</td><td class="num">${esc(c.cpu)}</td><td class="num">${esc(c.memory)}</td><td class="num">${esc(c.net)}</td></tr>`).join("");
+  $("cbody").querySelectorAll("tr").forEach(tr => tr.onclick = () => { csel = tr.dataset.c; containers(); });
+  const cur = snap.containers.find(c => c.id === csel), on = cur?.state === "running";
+  $("cstart").disabled = !cur || on; $("cstop").disabled = $("crestart").disabled = !cur || !on;
+}
+for (const v of ["start", "stop", "restart"]) $("c" + v).onclick = async () => {
+  const cur = snap.containers.find(c => c.id === csel);
+  if (!cur || !confirm(`${v[0].toUpperCase() + v.slice(1)} ${cur.name}?`)) return;
+  $("cmsg").textContent = "Working…";
+  const r = await api("/api/action", { kind: "container", verb: v, target: cur.id });
+  $("cmsg").textContent = r.message; setTimeout(tick, 800);
+};
+
+// Paired already (the cookie) → the app; otherwise the pairing page.
+fetch("/api/snapshot").then(r => r.status === 401 ? showLogin() : start()).catch(showLogin);
+</script>
+</body>
+</html>
