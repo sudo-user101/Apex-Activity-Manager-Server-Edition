@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased (2026-10-27)
+
+- README: the install steps now start by downloading the release file (and
+  checking it); following them from the repository's Download ZIP failed
+  with "Cannot open: No such file". No change to the program.
+
 ## 1.0.0 (2026-10-26)
 
 - The first release: a task manager for a Linux server. Every process,

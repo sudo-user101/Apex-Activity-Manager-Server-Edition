@@ -16,9 +16,24 @@ Amazon Linux 2023 and Alpine 3.20.
 
 ## Install
 
+On the Linux server, download the release file, check it, unpack it and run
+the installer:
+
+    curl -fLO https://github.com/sudo-user101/Apex-Activity-Manager-Server-Edition/releases/latest/download/apex-server-1.0.0-linux.tar.gz
+    curl -fLO https://github.com/sudo-user101/Apex-Activity-Manager-Server-Edition/releases/latest/download/apex-server-1.0.0-linux.tar.gz.sha256
+    sha256sum -c apex-server-1.0.0-linux.tar.gz.sha256
     tar xzf apex-server-1.0.0-linux.tar.gz
     cd apex-server-1.0.0
     sudo sh install.sh                # or: sudo sh install.sh --port 9000
+
+No `curl`? Use `wget` with the same addresses, or download both files from
+the [Releases](https://github.com/sudo-user101/Apex-Activity-Manager-Server-Edition/releases)
+page and run the commands from the folder they're in (usually `~/Downloads`).
+
+Use the release file, not GitHub's **Code › Download ZIP**: that is the
+source code, without the built programs, so `install.sh` can't install from
+it. To build from the source instead, install Go 1.22 or later and run
+`sh build.sh`; it makes the same file in `dist/`.
 
 It prints the server's address, a pairing code and its certificate's
 fingerprint. In Apex on your Mac: This Mac menu › Add Server…, choose
