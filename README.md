@@ -19,21 +19,63 @@ Amazon Linux 2023 and Alpine 3.20.
 On the Linux server, download the release file, check it, unpack it and run
 the installer:
 
-    curl -fLO https://github.com/sudo-user101/Apex-Activity-Manager-Server-Edition/releases/latest/download/apex-server-1.0.0-linux.tar.gz
-    curl -fLO https://github.com/sudo-user101/Apex-Activity-Manager-Server-Edition/releases/latest/download/apex-server-1.0.0-linux.tar.gz.sha256
-    sha256sum -c apex-server-1.0.0-linux.tar.gz.sha256
-    tar xzf apex-server-1.0.0-linux.tar.gz
-    cd apex-server-1.0.0
+    curl -fLO https://github.com/sudo-user101/Apex-Activity-Manager-Server-Edition/releases/latest/download/apex-server-1.0.1-linux.tar.gz
+    curl -fLO https://github.com/sudo-user101/Apex-Activity-Manager-Server-Edition/releases/latest/download/apex-server-1.0.1-linux.tar.gz.sha256
+    sha256sum -c apex-server-1.0.1-linux.tar.gz.sha256
+    tar xzf apex-server-1.0.1-linux.tar.gz
+    cd apex-server-1.0.1
     sudo sh install.sh                # or: sudo sh install.sh --port 9000
 
 No `curl`? Use `wget` with the same addresses, or download both files from
 the [Releases](https://github.com/sudo-user101/Apex-Activity-Manager-Server-Edition/releases)
 page and run the commands from the folder they're in (usually `~/Downloads`).
 
-Use the release file, not GitHub's **Code › Download ZIP**: that is the
-source code, without the built programs, so `install.sh` can't install from
-it. To build from the source instead, install Go 1.22 or later and run
-`sh build.sh`; it makes the same file in `dist/`.
+### Or from a clone of this repository
+
+Clone it (or use **Code › Download ZIP** and unzip it), go into the folder
+and run the same installer:
+
+    git clone https://github.com/sudo-user101/Apex-Activity-Manager-Server-Edition.git
+    cd Apex-Activity-Manager-Server-Edition
+    sudo sh install.sh                # or: sudo sh install.sh --port 9000
+
+With the ZIP instead of `git`:
+
+    curl -fLO https://github.com/sudo-user101/Apex-Activity-Manager-Server-Edition/archive/refs/heads/main.zip
+    unzip main.zip                    # makes Apex-Activity-Manager-Server-Edition-main
+    cd Apex-Activity-Manager-Server-Edition-main
+    sudo sh install.sh
+
+A clone holds the source code, not the built program, so the installer
+gets the program for you:
+
+- **Go 1.22 or later installed?** It builds the program from the folder
+  (about a minute).
+- **No Go?** It downloads this version's release file from GitHub over
+  HTTPS (with `curl` or `wget`), checks its SHA-256 checksum, and installs
+  nothing if it doesn't match.
+- **Neither Go nor `curl` / `wget`?** It stops and says what to install.
+  `git`, `curl` and `unzip` come from the system's packages, for example
+  `sudo apt install git curl unzip` (Ubuntu, Debian), `sudo dnf install git
+  curl unzip` (Fedora, Rocky), `sudo apk add git curl unzip` (Alpine).
+
+Tested from a clone on Ubuntu 24.04 (download with `curl`), the official Go
+image (built from the folder) and Alpine 3.20 (download with BusyBox `wget`).
+
+### Start, stop and open it
+
+The installer starts it straight away and sets it to start with the server;
+there's nothing else to launch. It prints the address and a pairing code
+(below). To see that it's running, or to start and stop it yourself:
+
+    sudo apex-server status                         address, port, fingerprint
+    sudo systemctl status apex-server               systemd (most servers)
+    sudo systemctl restart apex-server
+    sudo rc-service apex-server restart             OpenRC (Alpine)
+    sudo /etc/init.d/apex-server restart            SysV init (older systems)
+
+To update later: `git pull` in the folder (or download the newer release
+file) and run `sudo sh install.sh` again; paired devices and settings stay.
 
 It prints the server's address, a pairing code and its certificate's
 fingerprint. In Apex on your Mac: This Mac menu › Add Server…, choose

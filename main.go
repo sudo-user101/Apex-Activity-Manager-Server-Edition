@@ -22,7 +22,7 @@ import (
 //	apex-server snapshot            one reading as JSON (for checking by hand)
 //	apex-server version
 
-var version = "1.0.0"
+var version = "1.0.1"
 
 func main() {
 	log.SetFlags(log.LstdFlags)

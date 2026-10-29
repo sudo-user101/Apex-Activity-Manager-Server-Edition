@@ -1,10 +1,17 @@
 # Changelog
 
-## Unreleased (2026-10-27)
+## 1.0.1 (2026-10-29)
 
-- README: the install steps now start by downloading the release file (and
-  checking it); following them from the repository's Download ZIP failed
-  with "Cannot open: No such file". No change to the program.
+- Install from a clone of the repository (or its Download ZIP): run
+  `sudo sh install.sh` in the folder. With Go 1.22+ it builds the program
+  there; otherwise it downloads this version's release file over HTTPS,
+  checks its SHA-256, and installs nothing if it doesn't match. Tested from
+  a clone on Ubuntu 24.04 (curl), the Go image (build) and Alpine 3.20
+  (BusyBox wget).
+- README: install from a clone or the ZIP, starting, stopping and checking
+  the service, updating.
+- README (2026-10-27): the release-file steps start by downloading and
+  checking it. No change to the program itself.
 
 ## 1.0.0 (2026-10-26)
 

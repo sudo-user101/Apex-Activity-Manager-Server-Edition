@@ -66,7 +66,46 @@ case "$(uname -m)" in
   *) fail "this processor ($(uname -m)) isn't supported yet: x86_64 and aarch64 are." ;;
 esac
 SRC="$HERE/apex-server-linux-$ARCH"
-[ -f "$SRC" ] || fail "apex-server-linux-$ARCH should be next to install.sh."
+
+# Run from a clone of the repository (no built program next to install.sh):
+# build it with Go if it's installed, else download this version's release
+# file over HTTPS, check its SHA-256 and take the program from it.
+if [ ! -f "$SRC" ]; then
+  WORK=$(mktemp -d)
+  trap 'rm -rf "$WORK"' EXIT
+  VERSION=$(sed -n 's/^var version = "\(.*\)"/\1/p' "$HERE/main.go" 2>/dev/null || true)
+  GO=$(command -v go 2>/dev/null || true)
+  [ -z "$GO" ] && [ -x /usr/local/go/bin/go ] && GO=/usr/local/go/bin/go
+  if [ -n "$GO" ] && [ -f "$HERE/go.mod" ]; then
+    say "Building Apex Server Edition $VERSION from this folder with $("$GO" version | cut -d' ' -f3)…"
+    (cd "$HERE" && CGO_ENABLED=0 GOOS=linux GOARCH=$ARCH "$GO" build -trimpath -ldflags "-s -w" -o "$WORK/apex-server-linux-$ARCH" .) \
+      || fail "the build failed (it needs Go 1.22 or later). Or remove Go from the PATH to download the ready-made program instead."
+  elif [ -n "$VERSION" ]; then
+    FILE="apex-server-$VERSION-linux.tar.gz"
+    URL="https://github.com/sudo-user101/Apex-Activity-Manager-Server-Edition/releases/download/v$VERSION"
+    say "Downloading Apex Server Edition $VERSION (the ready-made program for this version)…"
+    if command -v curl >/dev/null 2>&1; then
+      curl -fsSL --proto '=https' --tlsv1.2 -o "$WORK/$FILE" "$URL/$FILE" && curl -fsSL --proto '=https' --tlsv1.2 -o "$WORK/$FILE.sha256" "$URL/$FILE.sha256" \
+        || fail "couldn't download $URL/$FILE. Check the internet connection, or install Go 1.22+ to build it here."
+    elif command -v wget >/dev/null 2>&1; then
+      wget -q -O "$WORK/$FILE" "$URL/$FILE" && wget -q -O "$WORK/$FILE.sha256" "$URL/$FILE.sha256" \
+        || fail "couldn't download $URL/$FILE. Check the internet connection, or install Go 1.22+ to build it here."
+    else
+      fail "neither curl nor wget is installed: install one (or Go 1.22+), or use the release file from the Releases page."
+    fi
+    WANT=$(cut -d' ' -f1 < "$WORK/$FILE.sha256")
+    if command -v sha256sum >/dev/null 2>&1; then GOT=$(sha256sum "$WORK/$FILE" | cut -d' ' -f1)
+    else GOT=$(openssl dgst -sha256 "$WORK/$FILE" | sed 's/.*= //'); fi
+    [ -n "$WANT" ] && [ "$WANT" = "$GOT" ] || fail "the download's checksum doesn't match ($GOT). Nothing was installed."
+    tar xzf "$WORK/$FILE" -C "$WORK" "apex-server-$VERSION/apex-server-linux-$ARCH" \
+      && mv "$WORK/apex-server-$VERSION/apex-server-linux-$ARCH" "$WORK/apex-server-linux-$ARCH" \
+      || fail "the downloaded file didn't have the program for $ARCH."
+    say "Checksum OK."
+  else
+    fail "apex-server-linux-$ARCH should be next to install.sh (use the release file, or run this from a clone of the repository)."
+  fi
+  SRC="$WORK/apex-server-linux-$ARCH"
+fi
 
 stop_service
 install -m 0755 "$SRC" "$BIN.new" 2>/dev/null || { cp "$SRC" "$BIN.new"; chmod 0755 "$BIN.new"; }
