@@ -85,9 +85,14 @@ func loadConfig() Config {
 
 // MARK: Certificate
 
+// certDays: how long a certificate lasts. macOS (and so the app) only
+// trusts a server's own certificate for at most 825 days; it's renewed
+// with the same key well before then, so the app's key pin stays valid.
+const certDays = 800
+
 func ensureCertificate() (tls.Certificate, string, error) {
 	certPath, keyPath := path("cert.pem"), path("key.pem")
-	if _, err := os.Stat(certPath); err != nil {
+	if needsNewCertificate(certPath, time.Now()) {
 		if err := makeCertificate(certPath, keyPath); err != nil {
 			return tls.Certificate{}, "", err
 		}
@@ -99,10 +104,46 @@ func ensureCertificate() (tls.Certificate, string, error) {
 	return cert, fingerprint(cert.Certificate[0]), nil
 }
 
-func makeCertificate(certPath, keyPath string) error {
-	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+// needsNewCertificate: none yet, one made for longer than macOS accepts
+// (before 1.1), or one ending within 60 days.
+func needsNewCertificate(certPath string, now time.Time) bool {
+	b, err := os.ReadFile(certPath)
 	if err != nil {
-		return err
+		return true
+	}
+	blk, _ := pem.Decode(b)
+	if blk == nil {
+		return true
+	}
+	c, err := x509.ParseCertificate(blk.Bytes)
+	if err != nil {
+		return true
+	}
+	return c.NotAfter.Sub(c.NotBefore) > 825*24*time.Hour || c.NotAfter.Sub(now) < 60*24*time.Hour
+}
+
+// makeCertificate: a new certificate, with the key the server already has
+// (a new key only the first time).
+func makeCertificate(certPath, keyPath string) error {
+	var key *ecdsa.PrivateKey
+	if b, err := os.ReadFile(keyPath); err == nil {
+		if blk, _ := pem.Decode(b); blk != nil {
+			key, _ = x509.ParseECPrivateKey(blk.Bytes)
+		}
+	}
+	if key == nil {
+		k, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		if err != nil {
+			return err
+		}
+		key = k
+		kb, err := x509.MarshalECPrivateKey(key)
+		if err != nil {
+			return err
+		}
+		if err := os.WriteFile(keyPath, pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: kb}), 0o600); err != nil {
+			return err
+		}
 	}
 	host, _ := os.Hostname()
 	serial, _ := rand.Int(rand.Reader, new(big.Int).Lsh(big.NewInt(1), 120))
@@ -110,7 +151,7 @@ func makeCertificate(certPath, keyPath string) error {
 		SerialNumber: serial,
 		Subject:      pkix.Name{CommonName: host, Organization: []string{"Apex Activity Manager Server Edition"}},
 		NotBefore:    time.Now().Add(-time.Hour),
-		NotAfter:     time.Now().AddDate(20, 0, 0),
+		NotAfter:     time.Now().AddDate(0, 0, certDays),
 		KeyUsage:     x509.KeyUsageDigitalSignature,
 		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 		DNSNames:     []string{host, "localhost"},
@@ -122,14 +163,21 @@ func makeCertificate(certPath, keyPath string) error {
 	if err != nil {
 		return err
 	}
-	kb, err := x509.MarshalECPrivateKey(key)
+	tmp := certPath + ".tmp"
+	if err := os.WriteFile(tmp, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der}), 0o644); err != nil {
+		return err
+	}
+	return os.Rename(tmp, certPath)
+}
+
+// keyFingerprint: SHA-256 of the certificate's public key (SubjectPublicKeyInfo),
+// the same through renewals. The app pins it beside the certificate's.
+func keyFingerprint(der []byte) string {
+	c, err := x509.ParseCertificate(der)
 	if err != nil {
-		return err
+		return ""
 	}
-	if err := os.WriteFile(keyPath, pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: kb}), 0o600); err != nil {
-		return err
-	}
-	return os.WriteFile(certPath, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der}), 0o644)
+	return fingerprint(c.RawSubjectPublicKeyInfo)
 }
 
 // fingerprint: SHA-256 of the certificate, as the app shows it ("AB:CD:…").

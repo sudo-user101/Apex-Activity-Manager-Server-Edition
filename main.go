@@ -20,9 +20,10 @@ import (
 //	apex-server devices [remove ID] paired Macs and browsers
 //	apex-server status              address, port, fingerprint, devices
 //	apex-server snapshot            one reading as JSON (for checking by hand)
+//	apex-server sites               reverse proxies and their sites as JSON
 //	apex-server version
 
-var version = "1.0.1"
+var version = "1.1.0"
 
 func main() {
 	log.SetFlags(log.LstdFlags)
@@ -124,6 +125,12 @@ func main() {
 		time.Sleep(time.Second)
 		c.Sample()
 		json.NewEncoder(os.Stdout).Encode(c.Latest())
+	case "sites":
+		mustRoot()
+		r, _ := Proxies(true)
+		e := json.NewEncoder(os.Stdout)
+		e.SetIndent("", "  ")
+		e.Encode(r)
 	case "version", "--version", "-v":
 		fmt.Println(version)
 	default:
@@ -141,7 +148,8 @@ func usage() {
   apex-server devices              paired devices
   apex-server devices remove ID    unpair one
   apex-server status               addresses, port, certificate fingerprint
-  apex-server snapshot             one reading as JSON`)
+  apex-server snapshot             one reading as JSON
+  apex-server sites                reverse proxies, their sites and traffic, as JSON`)
 }
 
 func mustRoot() {

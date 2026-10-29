@@ -180,7 +180,7 @@ func (c *Collector) Sample() {
 	sort.Strings(names)
 	for _, n := range names {
 		v := nd[n]
-		e := Net{Name: n, Received: v[0], Sent: v[1], Addresses: addrs[n]}
+		e := Net{Name: n, Received: v[0], Sent: v[1], Addresses: addrs[n], MAC: strings.TrimSpace(readText("/sys/class/net/" + n + "/address"))}
 		if p, ok := c.prevNet[n]; ok && !first {
 			e.InPerSec, e.OutPerSec = rate(v[0]-p[0], dt), rate(v[1]-p[1], dt)
 		}

@@ -176,6 +176,17 @@ func serviceAction(verb, name string, known []Service) error {
 
 // MARK: Processes
 
+// powerOff shuts the server down, with whatever init it has.
+func powerOff() {
+	for _, c := range [][]string{{"systemctl", "poweroff"}, {"poweroff"}, {"shutdown", "-h", "now"}} {
+		if have(c[0]) {
+			if _, err := run(30*time.Second, c[0], c[1:]...); err == nil {
+				return
+			}
+		}
+	}
+}
+
 func endProcess(pid int, force bool) error {
 	if pid <= 1 || pid == os.Getpid() {
 		return errors.New("that process can't be ended from Apex")
@@ -204,12 +215,30 @@ func containerSocket() string {
 	return ""
 }
 
+// One connection pool per Docker socket, shared by every request. A new
+// pool per request (as before 1.1) kept each one's connection open for
+// good: over a day, thousands of open sockets on a server running Docker.
+var (
+	dockerPoolsMu sync.Mutex
+	dockerPools   = map[string]*http.Transport{}
+)
+
 func dockerClient(sock string, timeout time.Duration) *http.Client {
-	return &http.Client{Timeout: timeout, Transport: &http.Transport{
-		DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
-			return (&net.Dialer{}).DialContext(ctx, "unix", sock)
-		},
-	}}
+	dockerPoolsMu.Lock()
+	t, ok := dockerPools[sock]
+	if !ok {
+		t = &http.Transport{
+			DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
+				return (&net.Dialer{}).DialContext(ctx, "unix", sock)
+			},
+			MaxIdleConns:        8,
+			MaxIdleConnsPerHost: 8,
+			IdleConnTimeout:     30 * time.Second,
+		}
+		dockerPools[sock] = t
+	}
+	dockerPoolsMu.Unlock()
+	return &http.Client{Timeout: timeout, Transport: t}
 }
 
 type dockerContainer struct {
@@ -361,7 +390,7 @@ func decimal(b uint64) string {
 }
 
 func containerAction(verb, id string, known []Container) error {
-	if verb != "start" && verb != "stop" && verb != "restart" {
+	if verb != "start" && verb != "stop" && verb != "restart" && verb != "unpause" {
 		return errors.New("unknown action")
 	}
 	found := false

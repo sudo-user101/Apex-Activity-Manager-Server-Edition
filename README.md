@@ -5,7 +5,8 @@ interface, container and signed-in user, live, in the Apex app on your Mac or
 in a browser. It runs as a service on its own port (7443), encrypted, and only
 devices you pair with a one-time code can see or change anything.
 
-Works with **Apex Activity Manager 1.3.0 or later** for Mac
+Works with **Apex Activity Manager 1.3.0 or later** for Mac (Sites and
+Docker Management need 1.4.0)
 ([download](https://github.com/sudo-user101/Apex-Activity-Manager-MacOSX/releases/latest)),
 and with any modern browser.
 
@@ -13,6 +14,14 @@ One static program, no dependencies, for x86_64 and aarch64 Linux with
 systemd, OpenRC or SysV init. Tested on Ubuntu 18.04 and 24.04 (with
 systemd), Debian 12, Fedora 41, Rocky Linux 9, CentOS 7, openSUSE Leap 15.6,
 Amazon Linux 2023 and Alpine 3.20.
+
+<p align="center">
+  <img src="docs/images/servers.png" alt="In the Apex app on a Mac: every server added up, with live graphs and a list of servers, one offline in red" />
+</p>
+<p align="center">
+  <img src="docs/images/server-sites.png" width="49%" alt="Sites: websites on nginx and Caddy with where they forward, certificate days left and traffic" />
+  <img src="docs/images/server-docker.png" width="49%" alt="Docker Management: stacks run by Dockge and Portainer with their containers" />
+</p>
 
 ## Install
 
@@ -93,10 +102,46 @@ cloud server in its security group, ideally only from your own address.
     sudo apex-server status           addresses, port, fingerprint
     sudo sh install.sh --uninstall    remove it and its settings
 
+## Sites (reverse proxies)
+
+Apex finds nginx, Caddy, Traefik and Nginx Proxy Manager, on the server or
+in Docker, and shows every site: its domains, where it forwards, its HTTPS
+certificate and when it expires, and its traffic over the last 10 minutes.
+`sudo apex-server sites` prints the same as JSON.
+
+On nginx, Caddy and Traefik you can add a site (domains → an address like
+`http://127.0.0.1:3000`), edit it, switch it off and on, and remove it.
+Sites Apex adds go in their own files (`apex-<domain>`); your own files are
+never edited (existing nginx sites can be switched off and on). Each change
+is checked by the proxy first (`nginx -t`, `caddy validate`, Traefik's API)
+and put back exactly as it was if the check or the reload fails.
+
+- nginx: HTTPS needs certbot (`apt install certbot python3-certbot-nginx`).
+- Caddy: the sites are imported into /etc/caddy/Caddyfile with one line;
+  Caddy gets HTTPS certificates by itself.
+- Traefik: needs its API (port 8080) and a file provider directory.
+- Nginx Proxy Manager: shown with its traffic; change sites on its own page.
+
+Tested on Ubuntu 24.04 with nginx 1.24, Caddy 2.6.2 and Traefik 3.1.6.
+
+## Docker Management
+
+Every container grouped by its stack and the manager that runs it (Dockge,
+Portainer, Compose), with logs, ports, CPU and memory. Start, stop,
+restart and remove containers; bring stacks up, update them (pull, then
+up) and take them down; view and edit compose files (checked with
+`docker compose config` before they're kept, the old one saved beside
+it); and see images, volumes and networks with what uses them, removing
+the unused ones. Stacks managed by Portainer can be started and stopped
+here; their files are changed in Portainer, which keeps their settings.
+
+Tested on Docker 29 with Docker Compose 2.40.
+
 ## What it can change
 
 Only what you ask it to, after you confirm: end a process, start / stop /
-restart a service or a container. Every action is logged with where it came
+restart a service or a container, the reverse proxies' sites and Docker
+(above), and shut the server down. Every action is logged with where it came
 from (`journalctl -u apex-server`, or /var/log/apex-server.log).
 
 ## Security
@@ -107,7 +152,9 @@ from (`journalctl -u apex-server`, or /var/log/apex-server.log).
 - Pairing codes expire after 24 hours; 10 wrong codes from one address lock
   it out for 15 minutes. Each device gets its own token; only its SHA-256 is
   stored on the server, and any device can be removed.
-- The systemd service runs with NoNewPrivileges and a read-only system.
+- The systemd service runs with NoNewPrivileges and a read-only system,
+  except its own settings and the reverse proxies' folders (/etc/nginx,
+  /etc/caddy, /etc/traefik, /etc/letsencrypt).
 
 ## Every computer
 

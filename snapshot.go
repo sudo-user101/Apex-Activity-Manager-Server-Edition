@@ -66,6 +66,7 @@ type Net struct {
 	Received  int64    `json:"received"`
 	Sent      int64    `json:"sent"`
 	Addresses []string `json:"addresses"`
+	MAC       string   `json:"mac,omitempty"` // for Wake-on-LAN from the app
 }
 
 type Process struct {

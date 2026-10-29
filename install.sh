@@ -130,12 +130,13 @@ ExecStart=/usr/local/bin/apex-server run
 Restart=always
 RestartSec=3
 # It runs as root to see every process and manage services, but can't gain
-# more than that or change the system's files beyond its own settings.
+# more than that or change the system's files beyond its own settings and
+# the reverse proxies' sites (Sites in Apex; "-": only if the folder exists).
 NoNewPrivileges=yes
 ProtectSystem=full
 ProtectHome=read-only
 PrivateTmp=yes
-ReadWritePaths=/etc/apex-server
+ReadWritePaths=/etc/apex-server -/etc/nginx -/etc/caddy -/etc/traefik -/etc/letsencrypt -/var/lib/letsencrypt
 
 [Install]
 WantedBy=multi-user.target

@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -19,6 +20,11 @@ import (
 
 //go:embed web/index.html
 var indexHTML []byte
+
+var (
+	tlsMu   sync.RWMutex
+	current tls.Certificate
+)
 
 type Server struct {
 	collector *Collector
@@ -34,6 +40,9 @@ func (s *Server) routes() http.Handler {
 	mux.HandleFunc("/api/snapshot", s.authed(s.snapshot))
 	mux.HandleFunc("/api/action", s.authed(s.action))
 	mux.HandleFunc("/api/logout", s.authed(s.logout))
+	mux.HandleFunc("/api/proxies", s.authed(s.proxies))
+	mux.HandleFunc("/api/proxy", s.authed(s.proxyChange))
+	mux.HandleFunc("/api/docker", s.authed(s.docker))
 	mux.HandleFunc("/", s.page)
 	return securityHeaders(mux)
 }
@@ -125,7 +134,10 @@ func (s *Server) pair(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	host := s.collector.Latest().Host
-	writeJSON(w, http.StatusOK, map[string]string{"token": t, "host": host})
+	tlsMu.RLock()
+	key := keyFingerprint(current.Certificate[0])
+	tlsMu.RUnlock()
+	writeJSON(w, http.StatusOK, map[string]string{"token": t, "host": host, "key": key})
 }
 
 func (s *Server) snapshot(w http.ResponseWriter, r *http.Request) {
@@ -185,6 +197,13 @@ func (s *Server) do(a actionRequest) error {
 		err := containerAction(a.Verb, a.Target, snap.Containers)
 		go s.collector.RefreshSlow()
 		return err
+	case "power":
+		if a.Verb != "off" {
+			return fmt.Errorf("unknown action")
+		}
+		// After the answer has gone back to the app.
+		go func() { time.Sleep(time.Second); powerOff() }()
+		return nil
 	}
 	return fmt.Errorf("unknown action")
 }
@@ -221,15 +240,29 @@ func capitalize(s string) string {
 // Serve runs the HTTPS server until it fails.
 func Serve(c *Collector, a *Auth, cfg Config, cert tls.Certificate) error {
 	s := &Server{collector: c, auth: a}
+	current = cert
+	go func() { // renewed in place, same key, well before it ends
+		for range time.Tick(12 * time.Hour) {
+			if nc, _, err := ensureCertificate(); err == nil {
+				tlsMu.Lock()
+				current = nc
+				tlsMu.Unlock()
+			}
+		}
+	}()
 	go func() { // pick up devices removed from the command line
 		for range time.Tick(30 * time.Second) {
 			a.Reload()
 		}
 	}()
 	srv := &http.Server{
-		Addr:              net.JoinHostPort(cfg.Bind, fmt.Sprint(cfg.Port)),
-		Handler:           s.routes(),
-		TLSConfig:         &tls.Config{MinVersion: tls.VersionTLS12, Certificates: []tls.Certificate{cert}},
+		Addr:    net.JoinHostPort(cfg.Bind, fmt.Sprint(cfg.Port)),
+		Handler: s.routes(),
+		TLSConfig: &tls.Config{MinVersion: tls.VersionTLS12, GetCertificate: func(*tls.ClientHelloInfo) (*tls.Certificate, error) {
+			tlsMu.RLock()
+			defer tlsMu.RUnlock()
+			return &current, nil
+		}},
 		ReadHeaderTimeout: 10 * time.Second,
 		ReadTimeout:       30 * time.Second,
 		WriteTimeout:      60 * time.Second,
