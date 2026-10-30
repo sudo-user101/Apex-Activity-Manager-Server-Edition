@@ -8,6 +8,28 @@
 
 Newest first.
 
+## 2026-10-30 (1.2.0)
+
+- **Panel: full root from the app** (`/api/panel`), off until switched on
+  at the server with `sudo apex-server allow panel` (a paired device alone
+  can't get a root shell; `deny panel` switches it off; on systemd it adds
+  a drop-in that lifts the read-only system for this). Files (list, read,
+  write and upload in parts, rename, delete, permissions, owner), a root
+  terminal on a real pseudo-terminal (no extra library), packages with
+  apt, dnf/yum, apk or zypper (updates, security updates, install, remove,
+  restart needed) as background jobs, the firewall with ufw or firewalld
+  (SSH and Apex's own port are always kept open and can't be blocked or
+  deleted), fail2ban (jails, banned addresses, unban), SSH settings
+  (checked with `sshd -t`, put back if refused; passwords can't be turned
+  off while nobody has a key), users and their SSH keys (only real keys
+  accepted). Every change is logged. Viewing updates, firewall, fail2ban,
+  SSH and users works without panel mode.
+- Tested on Ubuntu 24.04 (`panel_live_test.go`): all of the above for real,
+  including the guards.
+- Sites: Nginx Proxy Manager sites show where they forward (its address
+  is in `$forward_scheme`, `$server` and `$port`, and proxy_pass comes
+  from a shared include). Seen on the owner's server as "–".
+
 ## 2026-10-29 (1.1.0)
 
 - **Fixed a leak in 1.0 on servers with Docker:** every reading opened new

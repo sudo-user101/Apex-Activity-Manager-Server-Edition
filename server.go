@@ -43,6 +43,7 @@ func (s *Server) routes() http.Handler {
 	mux.HandleFunc("/api/proxies", s.authed(s.proxies))
 	mux.HandleFunc("/api/proxy", s.authed(s.proxyChange))
 	mux.HandleFunc("/api/docker", s.authed(s.docker))
+	mux.HandleFunc("/api/panel", s.authed(s.panel))
 	mux.HandleFunc("/", s.page)
 	return securityHeaders(mux)
 }
@@ -241,6 +242,7 @@ func capitalize(s string) string {
 func Serve(c *Collector, a *Auth, cfg Config, cert tls.Certificate) error {
 	s := &Server{collector: c, auth: a}
 	current = cert
+	go reapTerminals()
 	go func() { // renewed in place, same key, well before it ends
 		for range time.Tick(12 * time.Hour) {
 			if nc, _, err := ensureCertificate(); err == nil {

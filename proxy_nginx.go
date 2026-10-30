@@ -220,10 +220,32 @@ func ngxSite(server ngxDirective) Site {
 		}
 	}
 	walk(server.block, false)
+	// Nginx Proxy Manager: the address is in variables, and proxy_pass comes
+	// from a shared include (proxy_pass $forward_scheme://$server:$port).
+	if host := vars["$server"]; host != "" && !hasProxyTarget(s.Targets) {
+		scheme := vars["$forward_scheme"]
+		if scheme == "" {
+			scheme = "http"
+		}
+		t := scheme + "://" + host
+		if p := vars["$port"]; p != "" {
+			t += ":" + p
+		}
+		s.Targets = append([]string{t}, s.Targets...)
+	}
 	if len(s.Domains) == 0 {
 		s.Domains = []string{"(any name)"}
 	}
 	return s
+}
+
+func hasProxyTarget(t []string) bool {
+	for _, x := range t {
+		if strings.Contains(x, "://") {
+			return true
+		}
+	}
+	return false
 }
 
 func mergeStrings(a, b []string) []string {

@@ -23,7 +23,7 @@ import (
 //	apex-server sites               reverse proxies and their sites as JSON
 //	apex-server version
 
-var version = "1.1.0"
+var version = "1.2.0"
 
 func main() {
 	log.SetFlags(log.LstdFlags)
@@ -119,12 +119,33 @@ func main() {
 			fmt.Printf("  https://%s\n", net.JoinHostPort(a, fmt.Sprint(cfg.Port)))
 		}
 		fmt.Printf("%d paired device(s)\n", len(NewAuth().devices))
+		if cfg.Panel {
+			fmt.Println("Full root features: on (sudo apex-server deny panel to switch off)")
+		} else {
+			fmt.Println("Full root features: off (sudo apex-server allow panel to switch on)")
+		}
 	case "snapshot":
 		c := NewCollector()
 		c.Sample()
 		time.Sleep(time.Second)
 		c.Sample()
 		json.NewEncoder(os.Stdout).Encode(c.Latest())
+	case "allow", "deny":
+		mustRoot()
+		if len(os.Args) < 3 || os.Args[2] != "panel" {
+			fmt.Fprintln(os.Stderr, "apex-server allow panel   (or: deny panel)")
+			os.Exit(2)
+		}
+		on := os.Args[1] == "allow"
+		if err := setPanel(on); err != nil {
+			log.Fatal(err)
+		}
+		if on {
+			fmt.Println("Full root features are on: paired devices can use files, the terminal, updates and the firewall.")
+			fmt.Println("Switch them off again with: sudo apex-server deny panel")
+		} else {
+			fmt.Println("Full root features are off. Paired devices can still see everything, and start, stop and restart.")
+		}
 	case "sites":
 		mustRoot()
 		r, _ := Proxies(true)
@@ -149,7 +170,9 @@ func usage() {
   apex-server devices remove ID    unpair one
   apex-server status               addresses, port, certificate fingerprint
   apex-server snapshot             one reading as JSON
-  apex-server sites                reverse proxies, their sites and traffic, as JSON`)
+  apex-server sites                reverse proxies, their sites and traffic, as JSON
+  apex-server allow panel          full root features from paired devices (files, terminal, updates, firewall)
+  apex-server deny panel           switch them off again`)
 }
 
 func mustRoot() {

@@ -131,6 +131,9 @@ server {
 	if len(s) != 1 || !s[0].HTTPS || s[0].Domains[0] != "cloud.example.com" {
 		t.Fatalf("%+v", s)
 	}
+	if len(s[0].Targets) == 0 || s[0].Targets[0] != "http://192.168.1.20:8080" {
+		t.Fatalf("where it forwards, from its variables: %+v", s[0].Targets)
+	}
 }
 
 func TestNginxConfig(t *testing.T) {

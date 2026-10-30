@@ -36,6 +36,9 @@ var configDir = "/etc/apex-server"
 type Config struct {
 	Port int    `json:"port"`
 	Bind string `json:"bind"` // "" = every address
+	// Panel: full root features from paired devices (files, terminal,
+	// updates, firewall). Only `apex-server allow panel` at the server sets it.
+	Panel bool `json:"panel,omitempty"`
 }
 
 type Device struct {

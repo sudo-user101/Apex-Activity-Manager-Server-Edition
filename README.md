@@ -5,8 +5,7 @@ interface, container and signed-in user, live, in the Apex app on your Mac or
 in a browser. It runs as a service on its own port (7443), encrypted, and only
 devices you pair with a one-time code can see or change anything.
 
-Works with **Apex Activity Manager 1.3.0 or later** for Mac (Sites and
-Docker Management need 1.4.0)
+Works with **Apex Activity Manager 1.3.0 or later** for Mac
 ([download](https://github.com/sudo-user101/Apex-Activity-Manager-MacOSX/releases/latest)),
 and with any modern browser.
 
@@ -15,25 +14,20 @@ systemd, OpenRC or SysV init. Tested on Ubuntu 18.04 and 24.04 (with
 systemd), Debian 12, Fedora 41, Rocky Linux 9, CentOS 7, openSUSE Leap 15.6,
 Amazon Linux 2023 and Alpine 3.20.
 
-<p align="center">
-  <img src="docs/images/servers.png" alt="In the Apex app on a Mac: every server added up, with live graphs and a list of servers, one offline in red" />
-</p>
-<p align="center">
-  <img src="docs/images/server-sites.png" width="49%" alt="Sites: websites on nginx and Caddy with where they forward, certificate days left and traffic" />
-  <img src="docs/images/server-docker.png" width="49%" alt="Docker Management: stacks run by Dockge and Portainer with their containers" />
-</p>
-
 ## Install
 
 On the Linux server, download the release file, check it, unpack it and run
 the installer:
 
-    curl -fLO https://github.com/sudo-user101/Apex-Activity-Manager-Server-Edition/releases/latest/download/apex-server-1.0.1-linux.tar.gz
-    curl -fLO https://github.com/sudo-user101/Apex-Activity-Manager-Server-Edition/releases/latest/download/apex-server-1.0.1-linux.tar.gz.sha256
-    sha256sum -c apex-server-1.0.1-linux.tar.gz.sha256
-    tar xzf apex-server-1.0.1-linux.tar.gz
-    cd apex-server-1.0.1
+    curl -fLO https://github.com/sudo-user101/Apex-Activity-Manager-Server-Edition/releases/latest/download/apex-server-linux.tar.gz
+    curl -fLO https://github.com/sudo-user101/Apex-Activity-Manager-Server-Edition/releases/latest/download/apex-server-linux.tar.gz.sha256
+    sha256sum -c apex-server-linux.tar.gz.sha256
+    tar xzf apex-server-linux.tar.gz
+    cd apex-server-*/
     sudo sh install.sh                # or: sudo sh install.sh --port 9000
+
+These addresses always give the newest version, and updating is the same
+commands (your settings and paired devices are kept).
 
 No `curl`? Use `wget` with the same addresses, or download both files from
 the [Releases](https://github.com/sudo-user101/Apex-Activity-Manager-Server-Edition/releases)
@@ -124,24 +118,25 @@ and put back exactly as it was if the check or the reload fails.
 
 Tested on Ubuntu 24.04 with nginx 1.24, Caddy 2.6.2 and Traefik 3.1.6.
 
-## Docker Management
+## Full root from the app (panel)
 
-Every container grouped by its stack and the manager that runs it (Dockge,
-Portainer, Compose), with logs, ports, CPU and memory. Start, stop,
-restart and remove containers; bring stacks up, update them (pull, then
-up) and take them down; view and edit compose files (checked with
-`docker compose config` before they're kept, the old one saved beside
-it); and see images, volumes and networks with what uses them, removing
-the unused ones. Stacks managed by Portainer can be started and stopped
-here; their files are changed in Portainer, which keeps their settings.
+With **Manage** in Apex 1.5 for Mac: a root terminal, files (edit,
+upload, download, permissions), updates and packages (apt, dnf/yum, apk,
+zypper), the firewall (ufw or firewalld), fail2ban, SSH sign-in settings,
+and users with their SSH keys. It's **off until you switch it on at the
+server**, so a paired device alone can never get a root shell:
 
-Tested on Docker 29 with Docker Compose 2.40.
+    sudo apex-server allow panel     # on
+    sudo apex-server deny panel      # off again
+
+Firewall changes always keep SSH and Apex's own port open; SSH changes are
+checked with `sshd -t` and put back if refused; passwords can't be switched
+off while nobody has an SSH key. Tested on Ubuntu 24.04.
 
 ## What it can change
 
 Only what you ask it to, after you confirm: end a process, start / stop /
-restart a service or a container, the reverse proxies' sites and Docker
-(above), and shut the server down. Every action is logged with where it came
+restart a service or a container, and the reverse proxies' sites above. Every action is logged with where it came
 from (`journalctl -u apex-server`, or /var/log/apex-server.log).
 
 ## Security
