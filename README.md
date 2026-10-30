@@ -26,8 +26,22 @@ the installer:
     cd apex-server-*/
     sudo sh install.sh                # or: sudo sh install.sh --port 9000
 
-These addresses always give the newest version, and updating is the same
-commands (your settings and paired devices are kept).
+These addresses always give the newest version.
+
+### Update
+
+Run the same commands on the server. Your settings, port and paired
+devices are kept, so there's no need to pair again:
+
+    curl -fLO https://github.com/sudo-user101/Apex-Activity-Manager-Server-Edition/releases/latest/download/apex-server-linux.tar.gz
+    curl -fLO https://github.com/sudo-user101/Apex-Activity-Manager-Server-Edition/releases/latest/download/apex-server-linux.tar.gz.sha256
+    sha256sum -c apex-server-linux.tar.gz.sha256
+    rm -rf apex-server-*/             # an unpacked folder from last time
+    tar xzf apex-server-linux.tar.gz && cd apex-server-*/
+    sudo sh install.sh                # keeps the port it already uses
+
+Then check the version with `sudo apex-server status`. To use **Manage**
+(1.2 and later), switch it on once with `sudo apex-server allow panel`.
 
 No `curl`? Use `wget` with the same addresses, or download both files from
 the [Releases](https://github.com/sudo-user101/Apex-Activity-Manager-Server-Edition/releases)
@@ -77,8 +91,8 @@ there's nothing else to launch. It prints the address and a pairing code
     sudo rc-service apex-server restart             OpenRC (Alpine)
     sudo /etc/init.d/apex-server restart            SysV init (older systems)
 
-To update later: `git pull` in the folder (or download the newer release
-file) and run `sudo sh install.sh` again; paired devices and settings stay.
+To update later, see [Update](#update) (or, in a clone, `git pull` and run
+`sudo sh install.sh` again); paired devices and settings stay.
 
 It prints the server's address, a pairing code and its certificate's
 fingerprint. In Apex on your Mac: This Mac menu › Add Server…, choose
