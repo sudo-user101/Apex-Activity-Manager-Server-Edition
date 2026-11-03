@@ -194,7 +194,8 @@ case "$1" in
     rm -f $PIDFILE
     for p in $(ls /proc 2>/dev/null | grep '^[0-9]*$'); do
       # The program itself (not this script, which shares its name).
-      [ "$(readlink /proc/$p/exe 2>/dev/null)" = /usr/local/bin/apex-server ] && kill "$p" 2>/dev/null
+      # (" (deleted)" once an update has replaced the file it was started from)
+      case "$(readlink /proc/$p/exe 2>/dev/null)" in /usr/local/bin/apex-server|"/usr/local/bin/apex-server (deleted)") kill "$p" 2>/dev/null ;; esac
     done
     true ;;
   restart) "$0" stop; sleep 1; "$0" start ;;

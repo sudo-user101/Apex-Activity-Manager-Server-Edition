@@ -21,9 +21,10 @@ import (
 //	apex-server status              address, port, fingerprint, devices
 //	apex-server snapshot            one reading as JSON (for checking by hand)
 //	apex-server sites               reverse proxies and their sites as JSON
+//	apex-server update / updates    update now; automatic updates on or off
 //	apex-server version
 
-var version = "1.2.0"
+var version = "1.3.0"
 
 func main() {
 	log.SetFlags(log.LstdFlags)
@@ -152,6 +153,22 @@ func main() {
 		e := json.NewEncoder(os.Stdout)
 		e.SetIndent("", "  ")
 		e.Encode(r)
+	case "apps":
+		mustRoot()
+		appsCLI()
+	case "updates":
+		mustRoot()
+		updatesCLI(os.Args[2:])
+	case "update":
+		mustRoot()
+		updateNowCLI()
+	case "apply-update": // run by the update itself, as the new program
+		mustRoot()
+		from := ""
+		if len(os.Args) > 2 {
+			from = os.Args[2]
+		}
+		applyUpdate(from)
 	case "version", "--version", "-v":
 		fmt.Println(version)
 	default:
@@ -171,6 +188,9 @@ func usage() {
   apex-server status               addresses, port, certificate fingerprint
   apex-server snapshot             one reading as JSON
   apex-server sites                reverse proxies, their sites and traffic, as JSON
+  apex-server apps                 detected software (WordPress, databases, …) as JSON
+  apex-server update               install the newest version now (signed releases only)
+  apex-server updates [on|off]     automatic updates: status, or switch them on or off
   apex-server allow panel          full root features from paired devices (files, terminal, updates, firewall)
   apex-server deny panel           switch them off again`)
 }

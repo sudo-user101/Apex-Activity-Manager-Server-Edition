@@ -8,6 +8,40 @@
 
 Newest first.
 
+## 2026-11-03 (1.3.0)
+
+- **Updates itself** (public issue #1). Once a day (first check 10
+  minutes after starting) it asks GitHub for the newest release,
+  downloads it, checks its SHA-256 and its **Ed25519 signature** against
+  the release key built into the program (`update.go`; the private key
+  stays on the release Mac, `build.sh` signs with it), and swaps the
+  program. The swap runs outside the service (a transient
+  `systemd-run` unit, or a detached process on OpenRC / SysV), so it can
+  write /usr/local/bin under the sandbox and outlive the restart; it waits
+  up to 30 s for the new version to answer and otherwise puts the old one
+  back (`apex-server.previous`). Waits while a terminal or package job is
+  open. On by default; `apex-server updates [on|off]`, `apex-server
+  update`. `/api/update`: status (GET), `check` and `install` (POST), for
+  the app's Update button. State in /etc/apex-server/update.json.
+- **Apps** (`/api/apps`, `apex-server apps`): WordPress (Docker and
+  native), Ghost, Nextcloud, Gitea / Forgejo, Grafana, MinIO, Node.js and
+  the databases, grouped by kind, sites first; matched to proxy domains by
+  published port (loopback, the server's addresses, Docker gateways), by
+  container or compose service name, or by document root; stopped
+  containers marked; admin tools, exporters and WP-CLI images left out.
+- SysV init: `stop` also ends the program when its file has been replaced
+  (`/proc/<pid>/exe` reads "… (deleted)"); before, an updated program
+  couldn't start because the old one kept the port. The updater handles
+  installs with the old script too.
+- Tested in containers: Debian 12 (SysV) 1.3.0 → 1.3.1 through the API in
+  5 s with certificate, devices and settings byte-identical and the same
+  device token working; a version that didn't start was put back; a
+  release with a valid checksum but no valid signature was refused.
+  Apps: a WordPress container matched by `127.0.0.1:8080` and by container
+  name, a WordPress folder by document root, a look-alike image and a
+  leftover `wp-config.php` ignored. **Not tested yet:** the systemd swap
+  (`systemd-run` from the sandboxed service) on a real systemd server.
+
 ## 2026-10-30 (1.2.0)
 
 - **Panel: full root from the app** (`/api/panel`), off until switched on

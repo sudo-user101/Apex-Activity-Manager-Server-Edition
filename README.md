@@ -30,8 +30,24 @@ These addresses always give the newest version.
 
 ### Update
 
-Run the same commands on the server. Your settings, port and paired
-devices are kept, so there's no need to pair again:
+From 1.3 on, it **updates itself**: once a day it checks for a newer
+release, downloads it, checks its SHA-256 and its signature (made with the
+Apex release key; anything not signed with it is never installed), swaps
+the program and restarts. If the new version doesn't answer within 30
+seconds, the old one is put back. Settings, port and paired devices stay.
+It waits while a terminal or an update job is open in Manage. In the Apex
+app, Manage shows the version, with an **Update** button when a newer one
+is out.
+
+    sudo apex-server updates          version, last check, last update
+    sudo apex-server update           update now
+    sudo apex-server updates off      no automatic updates (on again: updates on)
+
+Each update is logged (`journalctl -u apex-server`, or /var/log/apex-server.log).
+
+Version 1.2 and earlier can't update themselves: run the install commands
+once more. Your settings, port and paired devices are kept, so there's no
+need to pair again:
 
     curl -fLO https://github.com/sudo-user101/Apex-Activity-Manager-Server-Edition/releases/latest/download/apex-server-linux.tar.gz
     curl -fLO https://github.com/sudo-user101/Apex-Activity-Manager-Server-Edition/releases/latest/download/apex-server-linux.tar.gz.sha256
@@ -132,6 +148,21 @@ and put back exactly as it was if the check or the reload fails.
 
 Tested on Ubuntu 24.04 with nginx 1.24, Caddy 2.6.2 and Traefik 3.1.6.
 
+## Apps
+
+Apex finds the software on the server and lists every instance by kind:
+WordPress (in Docker, and installed on the server: every `wp-config.php`
+with WordPress beside it under /var/www, /srv, /home, /opt), Ghost,
+Nextcloud, Gitea / Forgejo, Grafana, MinIO, Node.js, and the databases
+(MySQL, MariaDB, PostgreSQL, Redis, MongoDB) in Docker or as services.
+Each site is matched to its domains from the reverse proxies: by the port
+it's published on, its container's name (Nginx Proxy Manager and other
+proxies in Docker), or its folder. Stopped containers are marked.
+`sudo apex-server apps` prints the same as JSON. It only reads.
+
+Tested on Debian 12 with nginx (a WordPress container reached by port and
+by container name, a WordPress folder).
+
 ## Full root from the app (panel)
 
 With **Manage** in Apex 1.5 for Mac: a root terminal, files (edit,
@@ -150,7 +181,9 @@ off while nobody has an SSH key. Tested on Ubuntu 24.04.
 ## What it can change
 
 Only what you ask it to, after you confirm: end a process, start / stop /
-restart a service or a container, and the reverse proxies' sites above. Every action is logged with where it came
+restart a service or a container, and the reverse proxies' sites above.
+And itself: its automatic updates (signed releases only; `updates off`
+stops them). Every action is logged with where it came
 from (`journalctl -u apex-server`, or /var/log/apex-server.log).
 
 ## Security
@@ -185,7 +218,7 @@ never be the thing that stops you.
 
 ## Building
 
-    ./build.sh        # vet, test, then dist/apex-server-<version>-linux.tar.gz
+    ./build.sh        # vet, test, then dist/apex-server-<version>-linux.tar.gz (+ .sha256, and .sig with the release key)
 
 Needs Go 1.22 or later; nothing else (standard library only, static
 programs). The readings it sends are the shape the Apex Mac app reads, so a

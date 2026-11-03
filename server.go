@@ -44,6 +44,8 @@ func (s *Server) routes() http.Handler {
 	mux.HandleFunc("/api/proxy", s.authed(s.proxyChange))
 	mux.HandleFunc("/api/docker", s.authed(s.docker))
 	mux.HandleFunc("/api/panel", s.authed(s.panel))
+	mux.HandleFunc("/api/apps", s.authed(s.apps))
+	mux.HandleFunc("/api/update", s.authed(s.update))
 	mux.HandleFunc("/", s.page)
 	return securityHeaders(mux)
 }
@@ -243,6 +245,7 @@ func Serve(c *Collector, a *Auth, cfg Config, cert tls.Certificate) error {
 	s := &Server{collector: c, auth: a}
 	current = cert
 	go reapTerminals()
+	go updateLoop()
 	go func() { // renewed in place, same key, well before it ends
 		for range time.Tick(12 * time.Hour) {
 			if nc, _, err := ensureCertificate(); err == nil {

@@ -39,6 +39,8 @@ type Config struct {
 	// Panel: full root features from paired devices (files, terminal,
 	// updates, firewall). Only `apex-server allow panel` at the server sets it.
 	Panel bool `json:"panel,omitempty"`
+	// AutoUpdate: nil = on (the default); `apex-server updates off` sets false.
+	AutoUpdate *bool `json:"autoUpdate,omitempty"`
 }
 
 type Device struct {
