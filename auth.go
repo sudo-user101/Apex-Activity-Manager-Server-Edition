@@ -261,7 +261,7 @@ func (a *Auth) NewPairing() (Pairing, error) {
 	return a.pairing, saveJSON("pairing.json", a.pairing)
 }
 
-var errTooMany = errors.New("too many wrong codes from this address; wait 15 minutes")
+var errTooMany = errors.New("too many wrong codes; wait 15 minutes")
 var errBadCode = errors.New("that pairing code is wrong or has expired. Run `sudo apex-server pair` on the server for a new one")
 
 // Pair swaps the pairing code for a new device token.
@@ -271,14 +271,21 @@ func (a *Auth) Pair(code, device, from string) (string, error) {
 	// Re-read: `apex-server pair` may have made a new code since this started.
 	loadJSON("pairing.json", &a.pairing)
 	now := time.Now()
-	recent := a.failures[from][:0]
-	for _, t := range a.failures[from] {
-		if now.Sub(t) < 15*time.Minute {
-			recent = append(recent, t)
+	total := 0
+	for ip, times := range a.failures {
+		recent := times[:0]
+		for _, t := range times {
+			if now.Sub(t) < 15*time.Minute {
+				recent = append(recent, t)
+			}
 		}
+		if a.failures[ip] = recent; len(recent) == 0 {
+			delete(a.failures, ip)
+		}
+		total += len(recent)
 	}
-	a.failures[from] = recent
-	if len(recent) >= 10 {
+	// Per address, and overall: guessing from many addresses is limited too.
+	if len(a.failures[from]) >= 10 || total >= 200 {
 		return "", errTooMany
 	}
 	want := a.pairing.Code
@@ -298,7 +305,13 @@ func (a *Auth) Pair(code, device, from string) (string, error) {
 	if len(name) > 80 {
 		name = name[:80]
 	}
+	a.fresh()
 	a.devices = append(a.devices, Device{ID: hex.EncodeToString(idb), Name: name, Hash: hashToken(token), Created: now, LastSeen: now})
+	// One code, one device: someone who sees it later can't pair with it.
+	a.pairing = Pairing{}
+	if err := saveJSON("pairing.json", a.pairing); err != nil {
+		return "", err
+	}
 	return token, saveJSON("devices.json", a.devices)
 }
 
@@ -315,16 +328,35 @@ func (a *Auth) Check(token string) bool {
 	h := hashToken(token)
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	for i, d := range a.devices {
-		if subtle.ConstantTimeCompare([]byte(d.Hash), []byte(h)) == 1 {
-			if time.Since(d.LastSeen) > 5*time.Minute {
-				a.devices[i].LastSeen = time.Now()
-				saveJSON("devices.json", a.devices)
+	match := func() int {
+		for i, d := range a.devices {
+			if subtle.ConstantTimeCompare([]byte(d.Hash), []byte(h)) == 1 {
+				return i
 			}
-			return true
 		}
+		return -1
 	}
-	return false
+	i := match()
+	if i >= 0 && time.Since(a.devices[i].LastSeen) > 5*time.Minute {
+		// Saving: start from the file, so a device removed meanwhile stays removed.
+		a.fresh()
+		if i = match(); i < 0 {
+			return false
+		}
+		a.devices[i].LastSeen = time.Now()
+		saveJSON("devices.json", a.devices)
+	}
+	return i >= 0
+}
+
+// fresh: the device list from the file. `apex-server devices remove` edits the
+// file, and every save starts from it, so a stale list never puts a removed
+// device back. (Caller holds a.mu.)
+func (a *Auth) fresh() {
+	var d []Device
+	if loadJSON("devices.json", &d) == nil {
+		a.devices = d
+	}
 }
 
 // Reload picks up devices removed with `apex-server devices remove`.
@@ -341,6 +373,7 @@ func (a *Auth) Forget(token string) {
 	h := hashToken(token)
 	a.mu.Lock()
 	defer a.mu.Unlock()
+	a.fresh()
 	keep := a.devices[:0]
 	for _, d := range a.devices {
 		if d.Hash != h {

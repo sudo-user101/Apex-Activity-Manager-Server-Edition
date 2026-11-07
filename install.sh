@@ -111,10 +111,11 @@ stop_service
 install -m 0755 "$SRC" "$BIN.new" 2>/dev/null || { cp "$SRC" "$BIN.new"; chmod 0755 "$BIN.new"; }
 mv -f "$BIN.new" "$BIN"
 
+# Kept in memory, not a file: it holds the pairing code, and /tmp is shared.
 if [ -n "$PORT" ]; then
-  "$BIN" setup --port "$PORT" > /tmp/apex-server-welcome.$$
+  WELCOME=$("$BIN" setup --port "$PORT")
 else
-  "$BIN" setup > /tmp/apex-server-welcome.$$
+  WELCOME=$("$BIN" setup)
 fi
 
 case "$INIT" in
@@ -220,8 +221,7 @@ for i in 1 2 3 4 5 6 7 8 9 10; do
   sleep 1
 done
 
-cat /tmp/apex-server-welcome.$$
-rm -f /tmp/apex-server-welcome.$$
+printf '%s\n' "$WELCOME"
 if [ "$ok" = 1 ]; then say "  Running ($INIT) and answering on port $P."
 elif [ "$ok" = 0 ]; then say "  Installed ($INIT), but it isn't answering on port $P yet. See: $( [ "$INIT" = systemd ] && echo 'journalctl -u apex-server' || echo 'tail /var/log/apex-server.log')"
 else say "  Installed ($INIT) on port $P."; fi

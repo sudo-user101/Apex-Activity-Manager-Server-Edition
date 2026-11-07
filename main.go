@@ -24,7 +24,7 @@ import (
 //	apex-server update / updates    update now; automatic updates on or off
 //	apex-server version
 
-var version = "1.3.0"
+var version = "1.3.1"
 
 func main() {
 	log.SetFlags(log.LstdFlags)

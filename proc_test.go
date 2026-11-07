@@ -1,9 +1,14 @@
 package main
 
 import (
+	"bytes"
 	"encoding/binary"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -140,9 +145,14 @@ func TestPairing(t *testing.T) {
 	if _, err := a.Pair(p.Code, "x", "5.6.7.8"); err != errTooMany {
 		t.Fatal("after 10 wrong codes, even the right one waits", err)
 	}
+	if _, err := a.Pair(p.Code, "z", "2.2.2.2"); err != errBadCode {
+		t.Fatal("a code works once", err)
+	}
+	p, _ = a.NewPairing()
 	if _, err := a.Pair(p.Code, "y", "9.9.9.9"); err != nil {
 		t.Fatal("another address isn't blocked", err)
 	}
+	p, _ = a.NewPairing()
 	a.pairing.Expires = time.Now().Add(-time.Minute)
 	saveJSON("pairing.json", a.pairing)
 	if _, err := a.Pair(p.Code, "z", "1.1.1.1"); err != errBadCode {
@@ -178,5 +188,63 @@ func TestCertificate(t *testing.T) {
 	}
 	if st, _ := os.Stat(filepath.Join(configDir, "key.pem")); st.Mode().Perm() != 0o600 {
 		t.Fatal("key readable by others")
+	}
+}
+
+// A page on another site can't change anything with the browser's cookie.
+func TestChangesFromABrowserNeedTheHeader(t *testing.T) {
+	configDir = t.TempDir()
+	a := NewAuth()
+	p, _ := a.NewPairing()
+	tok, err := a.Pair(p.Code, "Browser", "1.2.3.4")
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := &Server{auth: a}
+	ran := false
+	h := s.authed(func(http.ResponseWriter, *http.Request) { ran = true })
+	for _, method := range []string{http.MethodPost, http.MethodPut, http.MethodDelete, http.MethodPatch} {
+		ran = false
+		r := httptest.NewRequest(method, "/api/action", nil)
+		r.AddCookie(&http.Cookie{Name: cookieName, Value: tok})
+		w := httptest.NewRecorder()
+		h(w, r)
+		if ran || w.Code != http.StatusForbidden {
+			t.Fatal(method, "ran without the header", w.Code)
+		}
+	}
+	r := httptest.NewRequest(http.MethodPost, "/api/action", nil)
+	r.AddCookie(&http.Cookie{Name: cookieName, Value: tok})
+	r.Header.Set("X-Apex", "1")
+	h(httptest.NewRecorder(), r)
+	if !ran {
+		t.Fatal("the page's own request was refused")
+	}
+}
+
+func TestGuessingFromManyAddressesIsLimited(t *testing.T) {
+	configDir = t.TempDir()
+	a := NewAuth()
+	p, _ := a.NewPairing()
+	for i := 0; i < 200; i++ {
+		a.Pair("WRONG-CODE", "x", fmt.Sprintf("10.0.%d.%d", i/250, i%250))
+	}
+	if _, err := a.Pair(p.Code, "x", "9.9.9.9"); err != errTooMany {
+		t.Fatal("no limit across addresses", err)
+	}
+}
+
+func TestOnlyThePagesOwnScriptMayRun(t *testing.T) {
+	w := httptest.NewRecorder()
+	securityHeaders(http.NotFoundHandler()).ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/", nil))
+	csp := w.Header().Get("Content-Security-Policy")
+	if !strings.Contains(csp, "script-src '"+inlineScriptHash(indexHTML)+"'") || strings.Contains(csp, "script-src 'self' 'unsafe-inline'") {
+		t.Fatal(csp)
+	}
+	if bytes.Count(indexHTML, []byte("<script")) != 1 {
+		t.Fatal("the hash covers one inline script; a second wouldn't run")
+	}
+	if os.Getenv("APEX_PRINT_CSP") != "" {
+		fmt.Println("CSP:", csp)
 	}
 }

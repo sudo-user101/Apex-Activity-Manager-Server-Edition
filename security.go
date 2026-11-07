@@ -7,10 +7,10 @@ import (
 	"net"
 	"os"
 	"os/user"
-	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -353,7 +353,7 @@ func setSSH(setting, value string) error {
 
 func anyKeys() bool {
 	for _, u := range systemUsers() {
-		if len(readKeys(u["home"].(string))) > 0 {
+		if len(readKeys(u["home"].(string), -1)) > 0 { // counting only
 			return true
 		}
 	}
@@ -391,13 +391,14 @@ func systemUsers() []map[string]any {
 		if uid != 0 && (uid < 1000 || uid >= 65534) || strings.HasSuffix(shell, "nologin") || strings.HasSuffix(shell, "false") {
 			continue
 		}
-		out = append(out, map[string]any{"name": p[0], "uid": uid, "home": p[5], "shell": shell, "admin": uid == 0 || admins[p[0]], "keys": len(readKeys(p[5]))})
+		out = append(out, map[string]any{"name": p[0], "uid": uid, "home": p[5], "shell": shell, "admin": uid == 0 || admins[p[0]], "keys": len(readKeys(p[5], uid))})
 	}
 	return out
 }
 
-func readKeys(home string) []string {
-	b, err := os.ReadFile(filepath.Join(home, ".ssh", "authorized_keys"))
+// readKeys: owner is the user's uid; a link or someone else's file isn't read.
+func readKeys(home string, owner int) []string {
+	b, err := safeRead(home, ".ssh", "authorized_keys", owner)
 	if err != nil {
 		return nil
 	}
@@ -425,10 +426,15 @@ func usersDo(r PanelRequest) (any, error) {
 	if home == "" {
 		return nil, fmt.Errorf("there's no user called %s who can sign in", r.User)
 	}
-	file := filepath.Join(home, ".ssh", "authorized_keys")
+	u, err := user.Lookup(name)
+	if err != nil {
+		return nil, err
+	}
+	uid, _ := strconv.Atoi(u.Uid)
+	gid, _ := strconv.Atoi(u.Gid)
 	switch r.Op {
 	case "keys.list":
-		keys := readKeys(home)
+		keys := readKeys(home, uid)
 		if keys == nil {
 			keys = []string{}
 		}
@@ -438,7 +444,10 @@ func usersDo(r PanelRequest) (any, error) {
 		if r.Op == "keys.add" && !keyRE.MatchString(key) {
 			return nil, errors.New("that isn't an SSH public key (it starts with ssh-ed25519, ssh-rsa or ecdsa-…)")
 		}
-		keys := readKeys(home)
+		if _, err := safeRead(home, ".ssh", "authorized_keys", uid); err != nil && !os.IsNotExist(err) && !errors.Is(err, syscall.ENOENT) {
+			return nil, err // a link or another user's file: refuse instead of replacing it
+		}
+		keys := readKeys(home, uid)
 		var out []string
 		for _, k := range keys {
 			if k != key {
@@ -450,18 +459,7 @@ func usersDo(r PanelRequest) (any, error) {
 		} else if len(out) == len(keys) {
 			return nil, errors.New("that key isn't there")
 		}
-		u, err := user.Lookup(name)
-		if err != nil {
-			return nil, err
-		}
-		uid, _ := strconv.Atoi(u.Uid)
-		gid, _ := strconv.Atoi(u.Gid)
-		os.MkdirAll(filepath.Dir(file), 0o700)
-		os.Chown(filepath.Dir(file), uid, gid)
-		if err := os.WriteFile(file, []byte(strings.Join(out, "\n")+"\n"), 0o600); err != nil {
-			return nil, err
-		}
-		return nil, os.Chown(file, uid, gid)
+		return nil, safeReplace(home, ".ssh", "authorized_keys", []byte(strings.Join(out, "\n")+"\n"), 0o600, uid, gid)
 	}
 	return nil, errors.New("unknown action")
 }

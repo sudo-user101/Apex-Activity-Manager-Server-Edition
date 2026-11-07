@@ -474,7 +474,16 @@ func composeCommand() ([]string, bool) {
 
 // MARK: Doing
 
+// dockerNeedsPanel: a compose file decides what Docker runs, privileged
+// containers and the server's own folders included, so reading or changing one
+// is root and needs panel mode, like the terminal. Start, stop, restart and
+// deploying an unchanged stack don't.
+func dockerNeedsPanel(op string) bool { return op == "file" || op == "save" }
+
 func DockerDo(req DockerRequest, stats []Container) (any, error) {
+	if dockerNeedsPanel(req.Op) && !panelOn() {
+		return nil, errPanelOff
+	}
 	if req.Op == "list" {
 		return DockerList(stats), nil
 	}

@@ -1,8 +1,11 @@
 package main
 
 import (
+	"bytes"
+	"crypto/sha256"
 	"crypto/tls"
 	_ "embed"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -50,13 +53,26 @@ func (s *Server) routes() http.Handler {
 	return securityHeaders(mux)
 }
 
+// The page's one inline script, by its hash: nothing else on it can run, even
+// if a value from the server ever got past esc().
+var scriptHash = inlineScriptHash(indexHTML)
+
+func inlineScriptHash(page []byte) string {
+	from, to := bytes.Index(page, []byte("<script>")), bytes.LastIndex(page, []byte("</script>"))
+	if from < 0 || to < from {
+		return "sha256-none"
+	}
+	sum := sha256.Sum256(page[from+len("<script>") : to])
+	return "sha256-" + base64.StdEncoding.EncodeToString(sum[:])
+}
+
 func securityHeaders(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Strict-Transport-Security", "max-age=31536000")
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("X-Frame-Options", "DENY")
 		w.Header().Set("Referrer-Policy", "no-referrer")
-		w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; frame-ancestors 'none'")
+		w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src '"+scriptHash+"'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; frame-ancestors 'none'")
 		w.Header().Set("Cache-Control", "no-store")
 		h.ServeHTTP(w, r)
 	})
@@ -79,7 +95,7 @@ func (s *Server) authed(next http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 		// Browser requests that change something must come from the page itself.
-		if r.Method == http.MethodPost && r.Header.Get("Authorization") == "" && r.Header.Get("X-Apex") != "1" {
+		if r.Method != http.MethodGet && r.Header.Get("Authorization") == "" && r.Header.Get("X-Apex") != "1" {
 			writeJSON(w, http.StatusForbidden, map[string]string{"error": "Refused."})
 			return
 		}

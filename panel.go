@@ -262,7 +262,7 @@ func readFilePart(p string, offset, length int64) (map[string]any, error) {
 // keeping its mode and owner); a later offset appends the next part of an upload.
 func writeFilePart(p string, data []byte, offset int64) error {
 	if offset > 0 {
-		f, err := os.OpenFile(p, os.O_WRONLY, 0)
+		f, err := os.OpenFile(p, os.O_WRONLY|syscall.O_NOFOLLOW, 0)
 		if err != nil {
 			return err
 		}
@@ -280,14 +280,9 @@ func writeFilePart(p string, data []byte, offset int64) error {
 			uid, gid = int(st.Uid), int(st.Gid)
 		}
 	}
-	tmp := p + ".apex-tmp"
-	if err := os.WriteFile(tmp, data, mode); err != nil {
-		return err
-	}
-	if uid >= 0 {
-		os.Chown(tmp, uid, gid)
-	}
-	return os.Rename(tmp, p)
+	// Never a fixed name beside it: a user who owns the folder could plant a
+	// link there and have root write or hand over another file.
+	return safeReplace(filepath.Dir(p), "", filepath.Base(p), data, mode, uid, gid)
 }
 
 func filesDo(r PanelRequest) (any, error) {

@@ -168,7 +168,8 @@ by container name, a WordPress folder).
 With **Manage** in Apex 1.5 for Mac: a root terminal, files (edit,
 upload, download, permissions), updates and packages (apt, dnf/yum, apk,
 zypper), the firewall (ufw or firewalld), fail2ban, SSH sign-in settings,
-and users with their SSH keys. It's **off until you switch it on at the
+users with their SSH keys, and Docker compose files (a compose file decides
+what Docker runs, so it's root too). It's **off until you switch it on at the
 server**, so a paired device alone can never get a root shell:
 
     sudo apex-server allow panel     # on
@@ -191,8 +192,8 @@ from (`journalctl -u apex-server`, or /var/log/apex-server.log).
 - TLS 1.2+ with the server's own certificate (made on first start, kept in
   /etc/apex-server, root only). Apex remembers its fingerprint and refuses
   any other certificate.
-- Pairing codes expire after 24 hours; 10 wrong codes from one address lock
-  it out for 15 minutes. Each device gets its own token; only its SHA-256 is
+- Pairing codes work once and expire after 24 hours; 10 wrong codes from one
+  address (or 200 from all) lock pairing for 15 minutes. Each device gets its own token; only its SHA-256 is
   stored on the server, and any device can be removed.
 - The systemd service runs with NoNewPrivileges and a read-only system,
   except its own settings and the reverse proxies' folders (/etc/nginx,

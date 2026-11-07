@@ -1,10 +1,31 @@
 # Changelog
 
-## Unreleased (2026-10-27)
+## 2026-11-07 (1.3.1): security fixes
 
-- README: the install steps now start by downloading the release file (and
-  checking it); following them from the repository's Download ZIP failed
-  with "Cannot open: No such file". No change to the program.
+Found by a security audit of the source, each fix tested by trying the
+attack on Linux.
+
+- **Docker compose files need panel mode.** Reading or saving a stack's
+  compose file let a paired device without panel mode deploy a privileged
+  container, which is root. Panel mode is the switch for root, so compose
+  files are now behind it, like the terminal. Start, stop, restart and
+  redeploying an unchanged stack still work without it.
+- **No root writes through planted links.** Adding SSH keys for a user, or
+  saving a file in a user's folder, followed links that user could plant,
+  so root could overwrite or hand over a file such as /etc/shadow. Links
+  are now refused and new files are created safely.
+- **Removed devices stay removed.** A device removed with
+  `apex-server devices remove` could be put back by the server in the 30
+  seconds before it re-read its list. Every save now starts from the file.
+- **The pairing code stays out of /tmp.** install.sh wrote the welcome text,
+  with the pairing code, to a file other users could usually read. It's
+  kept in memory now.
+- **Pairing codes work once,** as the README said. Wrong codes are also
+  limited across all addresses.
+- **The web page runs only its own script,** and every request that
+  changes something needs the page's header, not only POST.
+- README: the install steps start by downloading the release file (and
+  checking it).
 
 Newest first.
 
